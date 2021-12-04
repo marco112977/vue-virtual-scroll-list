@@ -1,331 +1,339 @@
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+/*!
+ * vue-virtual-scroll-list v2.3.3
+ * open source under the MIT license
+ * https://github.com/tangbc/vue-virtual-scroll-list#readme
+ */
 
-(function (root, factory) {
-  var namespace = 'VirtualList';
-  /* istanbul ignore next */
+(function (global, factory) {
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('vue')) :
+  typeof define === 'function' && define.amd ? define(['vue'], factory) :
+  (global = global || self, global.VirtualList = factory(global.Vue));
+}(this, (function (Vue) { 'use strict';
 
-  if ((typeof exports === "undefined" ? "undefined" : _typeof(exports)) === 'object' && (typeof module === "undefined" ? "undefined" : _typeof(module)) === 'object') {
-    module.exports = factory(namespace, require('vue'));
-  } else if (typeof define === 'function' && define.amd) {
-    define(['vue'], factory.bind(root, namespace));
-  } else if ((typeof exports === "undefined" ? "undefined" : _typeof(exports)) === 'object') {
-    exports[namespace] = factory(namespace, require('vue'));
-  } else {
-    root[namespace] = factory(namespace, root['Vue']);
+  Vue = Vue && Object.prototype.hasOwnProperty.call(Vue, 'default') ? Vue['default'] : Vue;
+
+  function _classCallCheck(instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
   }
-})(this, function (namespace, Vue) {
-  /* istanbul ignore next */
-  if (_typeof(Vue) === 'object' && typeof Vue.default === 'function') {
-    Vue = Vue.default;
+
+  function _defineProperties(target, props) {
+    for (var i = 0; i < props.length; i++) {
+      var descriptor = props[i];
+      descriptor.enumerable = descriptor.enumerable || false;
+      descriptor.configurable = true;
+      if ("value" in descriptor) descriptor.writable = true;
+      Object.defineProperty(target, descriptor.key, descriptor);
+    }
   }
-  /* istanbul ignore next */
 
+  function _createClass(Constructor, protoProps, staticProps) {
+    if (protoProps) _defineProperties(Constructor.prototype, protoProps);
+    if (staticProps) _defineProperties(Constructor, staticProps);
+    return Constructor;
+  }
 
-  var _debounce = function _debounce(func, wait, immediate) {
-    var timeout;
-    return function () {
-      var context = this;
-      var args = arguments;
+  function _defineProperty(obj, key, value) {
+    if (key in obj) {
+      Object.defineProperty(obj, key, {
+        value: value,
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
+    } else {
+      obj[key] = value;
+    }
 
-      var later = function later() {
-        timeout = null;
+    return obj;
+  }
 
-        if (!immediate) {
-          func.apply(context, args);
-        }
-      };
+  function ownKeys(object, enumerableOnly) {
+    var keys = Object.keys(object);
 
-      var callNow = immediate && !timeout;
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
+    if (Object.getOwnPropertySymbols) {
+      var symbols = Object.getOwnPropertySymbols(object);
+      if (enumerableOnly) symbols = symbols.filter(function (sym) {
+        return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+      });
+      keys.push.apply(keys, symbols);
+    }
 
-      if (callNow) {
-        func.apply(context, args);
+    return keys;
+  }
+
+  function _objectSpread2(target) {
+    for (var i = 1; i < arguments.length; i++) {
+      var source = arguments[i] != null ? arguments[i] : {};
+
+      if (i % 2) {
+        ownKeys(Object(source), true).forEach(function (key) {
+          _defineProperty(target, key, source[key]);
+        });
+      } else if (Object.getOwnPropertyDescriptors) {
+        Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+      } else {
+        ownKeys(Object(source)).forEach(function (key) {
+          Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+        });
       }
-    };
+    }
+
+    return target;
+  }
+
+  function _toConsumableArray(arr) {
+    return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr) || _nonIterableSpread();
+  }
+
+  function _arrayWithoutHoles(arr) {
+    if (Array.isArray(arr)) return _arrayLikeToArray(arr);
+  }
+
+  function _iterableToArray(iter) {
+    if (typeof Symbol !== "undefined" && Symbol.iterator in Object(iter)) return Array.from(iter);
+  }
+
+  function _unsupportedIterableToArray(o, minLen) {
+    if (!o) return;
+    if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+    var n = Object.prototype.toString.call(o).slice(8, -1);
+    if (n === "Object" && o.constructor) n = o.constructor.name;
+    if (n === "Map" || n === "Set") return Array.from(n);
+    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
+  }
+
+  function _arrayLikeToArray(arr, len) {
+    if (len == null || len > arr.length) len = arr.length;
+
+    for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+
+    return arr2;
+  }
+
+  function _nonIterableSpread() {
+    throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+
+  /**
+   * virtual list core calculating center
+   */
+  var DIRECTION_TYPE = {
+    FRONT: 'FRONT',
+    // scroll up or left
+    BEHIND: 'BEHIND' // scroll down or right
+
   };
+  var CALC_TYPE = {
+    INIT: 'INIT',
+    FIXED: 'FIXED',
+    DYNAMIC: 'DYNAMIC'
+  };
+  var LEADING_BUFFER = 0;
 
-  return Vue.component(namespace, {
-    props: {
-      size: {
-        type: Number,
-        required: true
-      },
-      remain: {
-        type: Number,
-        required: true
-      },
-      rtag: {
-        type: String,
-        default: 'div'
-      },
-      wtag: {
-        type: String,
-        default: 'div'
-      },
-      wclass: {
-        type: String,
-        default: ''
-      },
-      pagemode: {
-        type: Boolean,
-        default: false
-      },
-      start: {
-        type: Number,
-        default: 0
-      },
-      offset: {
-        type: Number,
-        default: 0
-      },
-      variable: {
-        type: [Function, Boolean],
-        default: false
-      },
-      bench: {
-        type: Number,
-        default: 0 // also equal to remain
+  var Virtual = /*#__PURE__*/function () {
+    function Virtual(param, callUpdate) {
+      _classCallCheck(this, Virtual);
 
-      },
-      debounce: {
-        type: Number,
-        default: 0
-      },
-      totop: {
-        type: [Function, Boolean],
-        // Boolean just disable for priviate.
-        default: false
-      },
-      tobottom: {
-        type: [Function, Boolean],
-        // Boolean just disable for priviate.
-        default: false
-      },
-      onscroll: {
-        type: [Function, Boolean],
-        // Boolean just disable for priviate.
-        default: false
-      },
-      item: {
-        type: Object,
-        default: null
-      },
-      itemcount: {
-        type: Number,
-        default: 0
-      },
-      itemprops: {
-        type: Function,
+      this.init(param, callUpdate);
+    }
 
-        /* istanbul ignore next */
-        default: function _default() {}
+    _createClass(Virtual, [{
+      key: "init",
+      value: function init(param, callUpdate) {
+        // param data
+        this.param = param;
+        this.callUpdate = callUpdate; // size data
+
+        this.sizes = new Map();
+        this.firstRangeTotalSize = 0;
+        this.firstRangeAverageSize = 0;
+        this.lastCalcIndex = 0;
+        this.fixedSizeValue = 0;
+        this.calcType = CALC_TYPE.INIT; // scroll data
+
+        this.offset = 0;
+        this.direction = ''; // range data
+
+        this.range = Object.create(null);
+
+        if (param) {
+          this.checkRange(0, param.keeps - 1);
+        } // benchmark test data
+        // this.__bsearchCalls = 0
+        // this.__getIndexOffsetCalls = 0
+
       }
-    },
-    // use changeProp to identify which prop change.
-    watch: {
-      size: function size() {
-        this.changeProp = 'size';
-      },
-      remain: function remain() {
-        this.changeProp = 'remain';
-      },
-      bench: function bench() {
-        this.changeProp = 'bench';
-        this.itemModeForceRender();
-      },
-      start: function start() {
-        this.changeProp = 'start';
-        this.itemModeForceRender();
-      },
-      offset: function offset() {
-        this.changeProp = 'offset';
-        this.itemModeForceRender();
-      },
-      itemcount: function itemcount() {
-        this.changeProp = 'itemcount';
-        this.itemModeForceRender();
+    }, {
+      key: "destroy",
+      value: function destroy() {
+        this.init(null, null);
+      } // return current render range
+
+    }, {
+      key: "getRange",
+      value: function getRange() {
+        var range = Object.create(null);
+        range.start = this.range.start;
+        range.end = this.range.end;
+        range.padFront = this.range.padFront;
+        range.padBehind = this.range.padBehind;
+        return range;
       }
-    },
-    created: function created() {
-      var start = this.start >= this.remain ? this.start : 0;
-      var keeps = this.remain + (this.bench || this.remain);
-      var delta = Object.create(null);
-      delta.direction = ''; // current scroll direction, D: down, U: up.
-
-      delta.scrollTop = 0; // current scroll top, use to direction.
-
-      delta.start = start; // start index.
-
-      delta.end = start + keeps - 1; // end index.
-
-      delta.keeps = keeps; // nums keeping in real dom.
-
-      delta.total = 0; // all items count, update in filter.
-
-      delta.offsetAll = 0; // cache all the scrollable offset.
-
-      delta.paddingTop = 0; // container wrapper real padding-top.
-
-      delta.paddingBottom = 0; // container wrapper real padding-bottom.
-
-      delta.varCache = {}; // object to cache variable index height and scroll offset.
-
-      delta.varAverSize = 0; // average/estimate item height before variable be calculated.
-
-      delta.varLastCalcIndex = 0; // last calculated variable height/offset index, always increase.
-
-      this.delta = delta;
-    },
-    mounted: function mounted() {
-      if (this.pagemode) {
-        window.addEventListener('scroll', this.debounce ? _debounce(this.onScroll.bind(this), this.debounce) : this.onScroll, false);
+    }, {
+      key: "isBehind",
+      value: function isBehind() {
+        return this.direction === DIRECTION_TYPE.BEHIND;
       }
+    }, {
+      key: "isFront",
+      value: function isFront() {
+        return this.direction === DIRECTION_TYPE.FRONT;
+      } // return start index offset
 
-      if (this.start) {
-        var start = this.getZone(this.start).start;
-        this.setScrollTop(this.variable ? this.getVarOffset(start) : start * this.size);
-      } else if (this.offset) {
-        this.setScrollTop(this.offset);
+    }, {
+      key: "getOffset",
+      value: function getOffset(start) {
+        return (start < 1 ? 0 : this.getIndexOffset(start)) + this.param.slotHeaderSize;
       }
-    },
-    beforeDestroy: function beforeDestroy() {
-      if (this.pagemode) {
-        window.removeEventListener('scroll', this.debounce ? _debounce(this.onScroll.bind(this), this.debounce) : this.onScroll, false);
-      }
-    },
-    // check if delta should update when props change.
-    beforeUpdate: function beforeUpdate() {
-      var delta = this.delta;
-      delta.keeps = this.remain + (this.bench || this.remain);
-      var calcstart = this.changeProp === 'start' ? this.start : delta.start;
-      var zone = this.getZone(calcstart); // if start, size or offset change, update scroll position.
-
-      if (this.changeProp && ['start', 'size', 'offset'].includes(this.changeProp)) {
-        var scrollTop = this.changeProp === 'offset' ? this.offset : this.variable ? this.getVarOffset(zone.isLast ? delta.total : zone.start) : zone.isLast && delta.total - calcstart <= this.remain ? delta.total * this.size : calcstart * this.size;
-        this.$nextTick(this.setScrollTop.bind(this, scrollTop));
-      } // if points out difference, force update once again.
-
-
-      if (this.changeProp || delta.end !== zone.end || calcstart !== zone.start) {
-        this.changeProp = '';
-        delta.end = zone.end;
-        delta.start = zone.start;
-        this.forceRender();
-      }
-    },
-    methods: {
-      onScroll: function onScroll(event) {
-        var delta = this.delta;
-        var vsl = this.$refs.vsl;
-        var offset = this.pagemode ? window.pageYOffset : (vsl.$el || vsl).scrollTop || 0;
-        delta.direction = offset > delta.scrollTop ? 'D' : 'U';
-        delta.scrollTop = offset;
-
-        if (delta.total > delta.keeps) {
-          this.updateZone(offset);
-        } else {
-          delta.end = delta.total - 1;
-        }
-
-        var offsetAll = delta.offsetAll;
-
-        if (this.onscroll) {
-          var param = Object.create(null);
-          param.offset = offset;
-          param.offsetAll = offsetAll;
-          param.start = delta.start;
-          param.end = delta.end;
-          this.onscroll(event, param);
-        }
-
-        if (!offset && delta.total) {
-          this.fireEvent('totop');
-        }
-
-        if (offset >= offsetAll) {
-          this.fireEvent('tobottom');
-        }
-      },
-      // update render zone by scroll offset.
-      updateZone: function updateZone(offset) {
-        var delta = this.delta;
-        var overs = this.variable ? this.getVarOvers(offset) : Math.floor(offset / this.size); // if scroll up, we'd better decrease it's numbers.
-
-        if (delta.direction === 'U') {
-          overs = overs - this.remain + 1;
-        }
-
-        var zone = this.getZone(overs);
-        var bench = this.bench || this.remain; // for better performance, if scroll pass items within now bench, do not update.
-        // and if overs is going to reach last item, we should render next zone immediately.
-
-        var shouldRenderNextZone = Math.abs(overs - delta.start - bench) === 1;
-
-        if (!shouldRenderNextZone && overs - delta.start <= bench && !zone.isLast && overs > delta.start) {
-          return;
-        } // we'd better make sure forceRender calls as less as possible.
-
-
-        if (shouldRenderNextZone || zone.start !== delta.start || zone.end !== delta.end) {
-          delta.end = zone.end;
-          delta.start = zone.start;
-          this.forceRender();
-        }
-      },
-      // return the right zone info base on `start/index`.
-      getZone: function getZone(index) {
-        var start, end;
-        var delta = this.delta;
-        index = parseInt(index, 10);
-        index = Math.max(0, index);
-        var lastStart = delta.total - delta.keeps;
-        var isLast = index <= delta.total && index >= lastStart || index > delta.total;
-
-        if (isLast) {
-          end = delta.total - 1;
-          start = Math.max(0, lastStart);
-        } else {
-          start = index;
-          end = start + delta.keeps - 1;
-        }
-
-        return {
-          end: end,
-          start: start,
-          isLast: isLast
-        };
-      },
-      // public method, force render ui list if we needed.
-      // call this before the next repaint to get better performance.
-      forceRender: function forceRender() {
+    }, {
+      key: "updateParam",
+      value: function updateParam(key, value) {
         var _this = this;
 
-        window.requestAnimationFrame(function () {
-          _this.$forceUpdate();
-        });
-      },
-      // force render ui if using item-mode.
-      itemModeForceRender: function itemModeForceRender() {
-        if (this.item) {
-          this.forceRender();
+        if (this.param && key in this.param) {
+          // if uniqueIds change, find out deleted id and remove from size map
+          if (key === 'uniqueIds') {
+            this.sizes.forEach(function (v, key) {
+              if (!value.includes(key)) {
+                _this.sizes["delete"](key);
+              }
+            });
+          }
+
+          this.param[key] = value;
         }
-      },
-      // return the scroll passed items count in variable.
-      getVarOvers: function getVarOvers(offset) {
+      } // save each size map by id
+
+    }, {
+      key: "saveSize",
+      value: function saveSize(id, size) {
+        this.sizes.set(id, size); // we assume size type is fixed at the beginning and remember first size value
+        // if there is no size value different from this at next comming saving
+        // we think it's a fixed size list, otherwise is dynamic size list
+
+        if (this.calcType === CALC_TYPE.INIT) {
+          this.fixedSizeValue = size;
+          this.calcType = CALC_TYPE.FIXED;
+        } else if (this.calcType === CALC_TYPE.FIXED && this.fixedSizeValue !== size) {
+          this.calcType = CALC_TYPE.DYNAMIC; // it's no use at all
+
+          delete this.fixedSizeValue;
+        } // calculate the average size only in the first range
+
+
+        if (this.calcType !== CALC_TYPE.FIXED && typeof this.firstRangeTotalSize !== 'undefined') {
+          if (this.sizes.size < Math.min(this.param.keeps, this.param.uniqueIds.length)) {
+            this.firstRangeTotalSize = _toConsumableArray(this.sizes.values()).reduce(function (acc, val) {
+              return acc + val;
+            }, 0);
+            this.firstRangeAverageSize = Math.round(this.firstRangeTotalSize / this.sizes.size);
+          } else {
+            // it's done using
+            delete this.firstRangeTotalSize;
+          }
+        }
+      } // in some special situation (e.g. length change) we need to update in a row
+      // try goiong to render next range by a leading buffer according to current direction
+
+    }, {
+      key: "handleDataSourcesChange",
+      value: function handleDataSourcesChange() {
+        var start = this.range.start;
+
+        if (this.isFront()) {
+          start = start - LEADING_BUFFER;
+        } else if (this.isBehind()) {
+          start = start + LEADING_BUFFER;
+        }
+
+        start = Math.max(start, 0);
+        this.updateRange(this.range.start, this.getEndByStart(start));
+      } // when slot size change, we also need force update
+
+    }, {
+      key: "handleSlotSizeChange",
+      value: function handleSlotSizeChange() {
+        this.handleDataSourcesChange();
+      } // calculating range on scroll
+
+    }, {
+      key: "handleScroll",
+      value: function handleScroll(offset) {
+        this.direction = offset < this.offset ? DIRECTION_TYPE.FRONT : DIRECTION_TYPE.BEHIND;
+        this.offset = offset;
+
+        if (!this.param) {
+          return;
+        }
+
+        if (this.direction === DIRECTION_TYPE.FRONT) {
+          this.handleFront();
+        } else if (this.direction === DIRECTION_TYPE.BEHIND) {
+          this.handleBehind();
+        }
+      } // ----------- public method end -----------
+
+    }, {
+      key: "handleFront",
+      value: function handleFront() {
+        var overs = this.getScrollOvers(); // should not change range if start doesn't exceed overs
+
+        if (overs > this.range.start) {
+          return;
+        } // move up start by a buffer length, and make sure its safety
+
+
+        var start = Math.max(overs - this.param.buffer, 0);
+        this.checkRange(start, this.getEndByStart(start));
+      }
+    }, {
+      key: "handleBehind",
+      value: function handleBehind() {
+        var overs = this.getScrollOvers(); // range should not change if scroll overs within buffer
+
+        if (overs < this.range.start + this.param.buffer) {
+          return;
+        }
+
+        this.checkRange(overs, this.getEndByStart(overs));
+      } // return the pass overs according to current scroll offset
+
+    }, {
+      key: "getScrollOvers",
+      value: function getScrollOvers() {
+        // if slot header exist, we need subtract its size
+        var offset = this.offset - this.param.slotHeaderSize;
+
+        if (offset <= 0) {
+          return 0;
+        } // if is fixed type, that can be easily
+
+
+        if (this.isFixedType()) {
+          return Math.floor(offset / this.fixedSizeValue);
+        }
+
         var low = 0;
         var middle = 0;
         var middleOffset = 0;
-        var delta = this.delta;
-        var high = delta.total;
+        var high = this.param.uniqueIds.length;
 
         while (low <= high) {
+          // this.__bsearchCalls++
           middle = low + Math.floor((high - low) / 2);
-          middleOffset = this.getVarOffset(middle); // calculate the average variable height at first binary search.
-
-          if (!delta.varAverSize) {
-            delta.varAverSize = Math.floor(middleOffset / middle);
-          }
+          middleOffset = this.getIndexOffset(middle);
 
           if (middleOffset === offset) {
             return middle;
@@ -337,205 +345,715 @@ function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterat
         }
 
         return low > 0 ? --low : 0;
-      },
-      // return a variable scroll offset from given index.
-      getVarOffset: function getVarOffset(index, nocache) {
-        var delta = this.delta;
-        var cache = delta.varCache[index];
+      } // return a scroll offset from given index, can efficiency be improved more here?
+      // although the call frequency is very high, its only a superposition of numbers
 
-        if (!nocache && cache) {
-          return cache.offset;
+    }, {
+      key: "getIndexOffset",
+      value: function getIndexOffset(givenIndex) {
+        if (!givenIndex) {
+          return 0;
         }
 
         var offset = 0;
+        var indexSize = 0;
 
-        for (var i = 0; i < index; i++) {
-          var size = this.getVarSize(i, nocache);
-          delta.varCache[i] = {
-            size: size,
-            offset: offset
-          };
-          offset += size;
-        }
+        for (var index = 0; index < givenIndex; index++) {
+          // this.__getIndexOffsetCalls++
+          indexSize = this.sizes.get(this.param.uniqueIds[index]);
+          offset = offset + (typeof indexSize === 'number' ? indexSize : this.getEstimateSize());
+        } // remember last calculate index
 
-        delta.varLastCalcIndex = Math.max(delta.varLastCalcIndex, index - 1);
-        delta.varLastCalcIndex = Math.min(delta.varLastCalcIndex, delta.total - 1);
+
+        this.lastCalcIndex = Math.max(this.lastCalcIndex, givenIndex - 1);
+        this.lastCalcIndex = Math.min(this.lastCalcIndex, this.getLastIndex());
         return offset;
-      },
-      // return a variable size (height) from given index.
-      getVarSize: function getVarSize(index, nocache) {
-        var cache = this.delta.varCache[index];
+      } // is fixed size type
 
-        if (!nocache && cache) {
-          return cache.size;
+    }, {
+      key: "isFixedType",
+      value: function isFixedType() {
+        return this.calcType === CALC_TYPE.FIXED;
+      } // return the real last index
+
+    }, {
+      key: "getLastIndex",
+      value: function getLastIndex() {
+        return this.param.uniqueIds.length - 1;
+      } // in some conditions range is broke, we need correct it
+      // and then decide whether need update to next range
+
+    }, {
+      key: "checkRange",
+      value: function checkRange(start, end) {
+        var keeps = this.param.keeps;
+        var total = this.param.uniqueIds.length; // datas less than keeps, render all
+
+        if (total <= keeps) {
+          start = 0;
+          end = this.getLastIndex();
+        } else if (end - start < keeps - 1) {
+          // if range length is less than keeps, corrent it base on end
+          start = end - keeps + 1;
         }
 
-        if (typeof this.variable === 'function') {
-          return this.variable(index) || 0;
+        if (this.range.start !== start) {
+          this.updateRange(start, end);
+        }
+      } // setting to a new range and rerender
+
+    }, {
+      key: "updateRange",
+      value: function updateRange(start, end) {
+        this.range.start = start;
+        this.range.end = end;
+        this.range.padFront = this.getPadFront();
+        this.range.padBehind = this.getPadBehind();
+        this.callUpdate(this.getRange());
+      } // return end base on start
+
+    }, {
+      key: "getEndByStart",
+      value: function getEndByStart(start) {
+        var theoryEnd = start + this.param.keeps - 1;
+        var truelyEnd = Math.min(theoryEnd, this.getLastIndex());
+        return truelyEnd;
+      } // return total front offset
+
+    }, {
+      key: "getPadFront",
+      value: function getPadFront() {
+        if (this.isFixedType()) {
+          return this.fixedSizeValue * this.range.start;
         } else {
-          // when using item, it can only get current components height,
-          // need to be enhanced, or consider using variable-function instead
-          var slot = this.item ? this.$children[index] ? this.$children[index].$vnode : null : this.$slots.default[index];
-          var style = slot && slot.data && slot.data.style;
-
-          if (style && style.height) {
-            var shm = style.height.match(/^(.*)px$/);
-            return shm && +shm[1] || 0;
-          }
+          return this.getIndexOffset(this.range.start);
         }
+      } // return total behind offset
 
-        return 0;
-      },
-      // return the variable paddingTop base current zone.
-      // @todo: if set a large `start` before variable was calculated,
-      // here will also case too much offset calculate when list is very large,
-      // consider use estimate paddingTop in this case just like `getVarPaddingBottom`.
-      getVarPaddingTop: function getVarPaddingTop() {
-        return this.getVarOffset(this.delta.start);
-      },
-      // return the variable paddingBottom base current zone.
-      getVarPaddingBottom: function getVarPaddingBottom() {
-        var delta = this.delta;
-        var last = delta.total - 1;
+    }, {
+      key: "getPadBehind",
+      value: function getPadBehind() {
+        var end = this.range.end;
+        var lastIndex = this.getLastIndex();
 
-        if (delta.total - delta.end <= delta.keeps || delta.varLastCalcIndex === last) {
-          return this.getVarOffset(last) - this.getVarOffset(delta.end);
+        if (this.isFixedType()) {
+          return (lastIndex - end) * this.fixedSizeValue;
+        } // if it's all calculated, return the exactly offset
+
+
+        if (this.lastCalcIndex === lastIndex) {
+          return this.getIndexOffset(lastIndex) - this.getIndexOffset(end);
         } else {
-          // if unreached last zone or uncalculate real behind offset
-          // return the estimate paddingBottom avoid too much calculate.
-          return (delta.total - delta.end) * (delta.varAverSize || this.size);
+          // if not, use a estimated value
+          return (lastIndex - end) * this.getEstimateSize();
         }
-      },
-      // retun the variable all heights use to judge reach bottom.
-      getVarAllHeight: function getVarAllHeight() {
-        var delta = this.delta;
+      } // get the item estimate size
 
-        if (delta.total - delta.end <= delta.keeps || delta.varLastCalcIndex === delta.total - 1) {
-          return this.getVarOffset(delta.total);
-        } else {
-          return this.getVarOffset(delta.start) + (delta.total - delta.end) * (delta.varAverSize || this.size);
-        }
-      },
-      // public method, allow the parent update variable by index.
-      updateVariable: function updateVariable(index) {
-        // clear/update all the offfsets and heights ahead of index.
-        this.getVarOffset(index, true);
-      },
-      // trigger a props event on parent.
-      fireEvent: function fireEvent(event) {
-        if (this[event]) {
-          this[event]();
-        }
-      },
-      // set manual scroll top.
-      setScrollTop: function setScrollTop(scrollTop) {
-        if (this.pagemode) {
-          window.scrollTo(0, scrollTop);
-        } else {
-          var vsl = this.$refs.vsl;
+    }, {
+      key: "getEstimateSize",
+      value: function getEstimateSize() {
+        return this.isFixedType() ? this.fixedSizeValue : this.firstRangeAverageSize || this.param.estimateSize;
+      }
+    }]);
 
-          if (vsl) {
-            (vsl.$el || vsl).scrollTop = scrollTop;
-          }
-        }
-      },
-      // filter the shown items base on `start` and `end`.
-      filter: function filter(h) {
-        var delta = this.delta;
-        var slots = this.$slots.default || []; // item-mode shoud judge from items prop.
+    return Virtual;
+  }();
 
-        if (this.item) {
-          delta.total = this.itemcount;
+  /**
+   * props declaration for default, item and slot component
+   */
+  var VirtualProps = {
+    dataKey: {
+      type: [String, Function],
+      required: true
+    },
+    dataSources: {
+      type: Array,
+      required: true
+    },
+    dataComponent: {
+      type: [Object, Function],
+      required: true
+    },
+    keeps: {
+      type: Number,
+      "default": 30
+    },
+    extraProps: {
+      type: Object
+    },
+    estimateSize: {
+      type: Number,
+      "default": 50
+    },
+    direction: {
+      type: String,
+      "default": 'vertical' // the other value is horizontal
 
-          if (delta.keeps > delta.total) {
-            delta.end = delta.total - 1;
-          }
-        } else {
-          if (!slots.length) {
-            delta.start = 0;
-          }
+    },
+    start: {
+      type: Number,
+      "default": 0
+    },
+    offset: {
+      type: Number,
+      "default": 0
+    },
+    topThreshold: {
+      type: Number,
+      "default": 0
+    },
+    bottomThreshold: {
+      type: Number,
+      "default": 0
+    },
+    pageMode: {
+      type: Boolean,
+      "default": false
+    },
+    rootTag: {
+      type: String,
+      "default": 'div'
+    },
+    wrapTag: {
+      type: String,
+      "default": 'div'
+    },
+    wrapClass: {
+      type: String,
+      "default": ''
+    },
+    wrapStyle: {
+      type: Object
+    },
+    itemTag: {
+      type: String,
+      "default": 'div'
+    },
+    itemClass: {
+      type: String,
+      "default": ''
+    },
+    itemClassAdd: {
+      type: Function
+    },
+    itemStyle: {
+      type: Object
+    },
+    headerTag: {
+      type: String,
+      "default": 'div'
+    },
+    headerClass: {
+      type: String,
+      "default": ''
+    },
+    headerStyle: {
+      type: Object
+    },
+    footerTag: {
+      type: String,
+      "default": 'div'
+    },
+    footerClass: {
+      type: String,
+      "default": ''
+    },
+    footerStyle: {
+      type: Object
+    },
+    itemScopedSlots: {
+      type: Object
+    }
+  };
+  var ItemProps = {
+    index: {
+      type: Number
+    },
+    event: {
+      type: String
+    },
+    tag: {
+      type: String
+    },
+    horizontal: {
+      type: Boolean
+    },
+    source: {
+      type: Object
+    },
+    component: {
+      type: [Object, Function]
+    },
+    slotComponent: {
+      type: Function
+    },
+    uniqueKey: {
+      type: [String, Number]
+    },
+    extraProps: {
+      type: Object
+    },
+    scopedSlots: {
+      type: Object
+    }
+  };
+  var SlotProps = {
+    event: {
+      type: String
+    },
+    uniqueKey: {
+      type: String
+    },
+    tag: {
+      type: String
+    },
+    horizontal: {
+      type: Boolean
+    }
+  };
 
-          delta.total = slots.length;
-        }
+  var Wrapper = {
+    created: function created() {
+      this.shapeKey = this.horizontal ? 'offsetWidth' : 'offsetHeight';
+    },
+    mounted: function mounted() {
+      var _this = this;
 
-        var paddingTop, paddingBottom, allHeight;
-        var hasPadding = delta.total > delta.keeps;
-
-        if (this.variable) {
-          allHeight = this.getVarAllHeight();
-          paddingTop = hasPadding ? this.getVarPaddingTop() : 0;
-          paddingBottom = hasPadding ? this.getVarPaddingBottom() : 0;
-        } else {
-          allHeight = this.size * delta.total;
-          paddingTop = this.size * (hasPadding ? delta.start : 0);
-          paddingBottom = this.size * (hasPadding ? delta.total - delta.keeps : 0) - paddingTop;
-        }
-
-        if (paddingBottom < this.size) {
-          paddingBottom = 0;
-        }
-
-        if (this.pagemode && this.$el && this.$el.parentElement) {
-          var bodyRect = document.body.getBoundingClientRect();
-          var elemRect = this.$el.parentElement.getBoundingClientRect();
-          var offset = elemRect.top - bodyRect.top;
-          paddingTop -= offset;
-          if (paddingTop < 0) paddingTop = 0;
-        }
-
-        delta.paddingTop = paddingTop;
-        delta.paddingBottom = paddingBottom;
-        delta.offsetAll = allHeight - this.size * this.remain;
-        var renders = [];
-
-        for (var i = delta.start; i < delta.total && i <= Math.ceil(delta.end); i++) {
-          var slot = null;
-
-          if (this.item) {
-            slot = h(this.item, this.itemprops(i));
-          } else {
-            slot = slots[i];
-          }
-
-          renders.push(slot);
-        }
-
-        return renders;
+      if (typeof ResizeObserver !== 'undefined') {
+        this.resizeObserver = new ResizeObserver(function () {
+          _this.dispatchSizeChange();
+        });
+        this.resizeObserver.observe(this.$el);
       }
     },
-    render: function render(h) {
-      var dbc = this.debounce;
-      var list = this.filter(h);
-      var _this$delta = this.delta,
-          paddingTop = _this$delta.paddingTop,
-          paddingBottom = _this$delta.paddingBottom;
-      var renderList = h(this.wtag, {
-        'style': {
-          'display': 'block',
-          'padding-top': paddingTop + 'px',
-          'padding-bottom': paddingBottom + 'px'
-        },
-        'class': this.wclass,
-        'attrs': {
-          'role': 'group'
-        }
-      }, list); // page mode just render list, no wraper.
-
-      if (this.pagemode) {
-        return renderList;
+    // since componet will be reused, so disptach when updated
+    updated: function updated() {
+      this.dispatchSizeChange();
+    },
+    beforeDestroy: function beforeDestroy() {
+      if (this.resizeObserver) {
+        this.resizeObserver.disconnect();
+        this.resizeObserver = null;
       }
+    },
+    methods: {
+      getCurrentSize: function getCurrentSize() {
+        return this.$el ? this.$el[this.shapeKey] : 0;
+      },
+      // tell parent current size identify by unqiue key
+      dispatchSizeChange: function dispatchSizeChange() {
+        this.$parent.$emit(this.event, this.uniqueKey, this.getCurrentSize(), this.hasInitial);
+      }
+    }
+  }; // wrapping for item
 
-      return h(this.rtag, {
-        'ref': 'vsl',
-        'style': {
-          'display': 'block',
-          'overflow-y': 'auto',
-          'height': this.size * this.remain + 'px'
-        },
-        'on': {
-          '&scroll': dbc ? _debounce(this.onScroll.bind(this), dbc) : this.onScroll
+  var Item = Vue.component('virtual-list-item', {
+    mixins: [Wrapper],
+    props: ItemProps,
+    render: function render(h) {
+      var tag = this.tag,
+          component = this.component,
+          _this$extraProps = this.extraProps,
+          extraProps = _this$extraProps === void 0 ? {} : _this$extraProps,
+          index = this.index,
+          source = this.source,
+          _this$scopedSlots = this.scopedSlots,
+          scopedSlots = _this$scopedSlots === void 0 ? {} : _this$scopedSlots,
+          uniqueKey = this.uniqueKey,
+          slotComponent = this.slotComponent;
+
+      var props = _objectSpread2({}, extraProps, {
+        source: source,
+        index: index
+      });
+
+      return h(tag, {
+        key: uniqueKey,
+        attrs: {
+          role: 'listitem'
         }
-      }, [renderList]);
+      }, [slotComponent ? h('div', slotComponent({
+        item: source,
+        index: index,
+        scope: props
+      })) : h(component, {
+        props: props,
+        scopedSlots: scopedSlots
+      })]);
+    }
+  }); // wrapping for slot
+
+  var Slot = Vue.component('virtual-list-slot', {
+    mixins: [Wrapper],
+    props: SlotProps,
+    render: function render(h) {
+      var tag = this.tag,
+          uniqueKey = this.uniqueKey;
+      return h(tag, {
+        key: uniqueKey,
+        attrs: {
+          role: uniqueKey
+        }
+      }, this.$slots["default"]);
     }
   });
-});
+
+  /**
+   * virtual list default component
+   */
+  var EVENT_TYPE = {
+    ITEM: 'item_resize',
+    SLOT: 'slot_resize'
+  };
+  var SLOT_TYPE = {
+    HEADER: 'thead',
+    // string value also use for aria role attribute
+    FOOTER: 'tfoot'
+  };
+  var VirtualList = Vue.component('virtual-list', {
+    props: VirtualProps,
+    data: function data() {
+      return {
+        range: null
+      };
+    },
+    watch: {
+      'dataSources.length': function dataSourcesLength() {
+        this.virtual.updateParam('uniqueIds', this.getUniqueIdFromDataSources());
+        this.virtual.handleDataSourcesChange();
+      },
+      keeps: function keeps(newValue) {
+        this.virtual.updateParam('keeps', newValue);
+        this.virtual.handleSlotSizeChange();
+      },
+      start: function start(newValue) {
+        this.scrollToIndex(newValue);
+      },
+      offset: function offset(newValue) {
+        this.scrollToOffset(newValue);
+      }
+    },
+    created: function created() {
+      this.isHorizontal = this.direction === 'horizontal';
+      this.directionKey = this.isHorizontal ? 'scrollLeft' : 'scrollTop';
+      this.installVirtual(); // listen item size change
+
+      this.$on(EVENT_TYPE.ITEM, this.onItemResized); // listen slot size change
+
+      if (this.$slots.header || this.$slots.footer) {
+        this.$on(EVENT_TYPE.SLOT, this.onSlotResized);
+      }
+    },
+    // set back offset when awake from keep-alive
+    activated: function activated() {
+      this.scrollToOffset(this.virtual.offset);
+    },
+    mounted: function mounted() {
+      // set position
+      if (this.start) {
+        this.scrollToIndex(this.start);
+      } else if (this.offset) {
+        this.scrollToOffset(this.offset);
+      } // in page mode we bind scroll event to document
+
+
+      if (this.pageMode) {
+        this.updatePageModeFront();
+        document.addEventListener('scroll', this.onScroll, {
+          passive: false
+        });
+      }
+    },
+    beforeDestroy: function beforeDestroy() {
+      this.virtual.destroy();
+
+      if (this.pageMode) {
+        document.removeEventListener('scroll', this.onScroll);
+      }
+    },
+    methods: {
+      // get item size by id
+      getSize: function getSize(id) {
+        return this.virtual.sizes.get(id);
+      },
+      // get the total number of stored (rendered) items
+      getSizes: function getSizes() {
+        return this.virtual.sizes.size;
+      },
+      // return current scroll offset
+      getOffset: function getOffset() {
+        if (this.pageMode) {
+          return document.documentElement[this.directionKey] || document.body[this.directionKey];
+        } else {
+          var root = this.$refs.root;
+          return root ? Math.ceil(root[this.directionKey]) : 0;
+        }
+      },
+      // return client viewport size
+      getClientSize: function getClientSize() {
+        var key = this.isHorizontal ? 'clientWidth' : 'clientHeight';
+
+        if (this.pageMode) {
+          return document.documentElement[key] || document.body[key];
+        } else {
+          var root = this.$refs.root;
+          return root ? Math.ceil(root[key]) : 0;
+        }
+      },
+      // return all scroll size
+      getScrollSize: function getScrollSize() {
+        var key = this.isHorizontal ? 'scrollWidth' : 'scrollHeight';
+
+        if (this.pageMode) {
+          return document.documentElement[key] || document.body[key];
+        } else {
+          var root = this.$refs.root;
+          return root ? Math.ceil(root[key]) : 0;
+        }
+      },
+      // set current scroll position to a expectant offset
+      scrollToOffset: function scrollToOffset(offset) {
+        if (this.pageMode) {
+          document.body[this.directionKey] = offset;
+          document.documentElement[this.directionKey] = offset;
+        } else {
+          var root = this.$refs.root;
+
+          if (root) {
+            root[this.directionKey] = offset;
+          }
+        }
+      },
+      // set current scroll position to a expectant index
+      scrollToIndex: function scrollToIndex(index) {
+        // scroll to bottom
+        if (index >= this.dataSources.length - 1) {
+          this.scrollToBottom();
+        } else {
+          var offset = this.virtual.getOffset(index);
+          this.scrollToOffset(offset);
+        }
+      },
+      // set current scroll position to bottom
+      scrollToBottom: function scrollToBottom() {
+        var _this = this;
+
+        var shepherd = this.$refs.shepherd;
+
+        if (shepherd) {
+          var offset = shepherd[this.isHorizontal ? 'offsetLeft' : 'offsetTop'];
+          this.scrollToOffset(offset); // check if it's really scrolled to the bottom
+          // maybe list doesn't render and calculate to last range
+          // so we need retry in next event loop until it really at bottom
+
+          setTimeout(function () {
+            if (_this.getOffset() + _this.getClientSize() < _this.getScrollSize()) {
+              _this.scrollToBottom();
+            }
+          }, 3);
+        }
+      },
+      // when using page mode we need update slot header size manually
+      // taking root offset relative to the browser as slot header size
+      updatePageModeFront: function updatePageModeFront() {
+        var root = this.$refs.root;
+
+        if (root) {
+          var rect = root.getBoundingClientRect();
+          var defaultView = root.ownerDocument.defaultView;
+          var offsetFront = this.isHorizontal ? rect.left + defaultView.pageXOffset : rect.top + defaultView.pageYOffset;
+          this.virtual.updateParam('slotHeaderSize', offsetFront);
+        }
+      },
+      // reset all state back to initial
+      reset: function reset() {
+        this.virtual.destroy();
+        this.scrollToOffset(0);
+        this.installVirtual();
+      },
+      // ----------- public method end -----------
+      installVirtual: function installVirtual() {
+        this.virtual = new Virtual({
+          slotHeaderSize: 0,
+          slotFooterSize: 0,
+          keeps: this.keeps,
+          estimateSize: this.estimateSize,
+          buffer: Math.round(this.keeps / 3),
+          // recommend for a third of keeps
+          uniqueIds: this.getUniqueIdFromDataSources()
+        }, this.onRangeChanged); // sync initial range
+
+        this.range = this.virtual.getRange();
+      },
+      getUniqueIdFromDataSources: function getUniqueIdFromDataSources() {
+        var dataKey = this.dataKey;
+        return this.dataSources.map(function (dataSource) {
+          return typeof dataKey === 'function' ? dataKey(dataSource) : dataSource[dataKey];
+        });
+      },
+      // event called when each item mounted or size changed
+      onItemResized: function onItemResized(id, size) {
+        this.virtual.saveSize(id, size);
+        this.$emit('resized', id, size);
+      },
+      // event called when slot mounted or size changed
+      onSlotResized: function onSlotResized(type, size, hasInit) {
+        if (type === SLOT_TYPE.HEADER) {
+          this.virtual.updateParam('slotHeaderSize', size);
+        } else if (type === SLOT_TYPE.FOOTER) {
+          this.virtual.updateParam('slotFooterSize', size);
+        }
+
+        if (hasInit) {
+          this.virtual.handleSlotSizeChange();
+        }
+      },
+      // here is the rerendering entry
+      onRangeChanged: function onRangeChanged(range) {
+        this.range = range;
+      },
+      onScroll: function onScroll(evt) {
+        var offset = this.getOffset();
+        var clientSize = this.getClientSize();
+        var scrollSize = this.getScrollSize(); // iOS scroll-spring-back behavior will make direction mistake
+
+        if (offset < 0 || offset + clientSize > scrollSize + 1 || !scrollSize) {
+          return;
+        }
+
+        this.virtual.handleScroll(offset);
+        this.emitEvent(offset, clientSize, scrollSize, evt);
+      },
+      // emit event in special position
+      emitEvent: function emitEvent(offset, clientSize, scrollSize, evt) {
+        this.$emit('scroll', evt, this.virtual.getRange());
+
+        if (this.virtual.isFront() && !!this.dataSources.length && offset - this.topThreshold <= 0) {
+          this.$emit('totop');
+        } else if (this.virtual.isBehind() && offset + clientSize + this.bottomThreshold >= scrollSize) {
+          this.$emit('tobottom');
+        }
+      },
+      // get the real render slots based on range data
+      // in-place patch strategy will try to reuse components as possible
+      // so those components that are reused will not trigger lifecycle mounted
+      getRenderSlots: function getRenderSlots(h) {
+        var slots = [];
+        var _this$range = this.range,
+            start = _this$range.start,
+            end = _this$range.end;
+        var dataSources = this.dataSources,
+            dataKey = this.dataKey,
+            itemClass = this.itemClass,
+            itemTag = this.itemTag,
+            itemStyle = this.itemStyle,
+            isHorizontal = this.isHorizontal,
+            extraProps = this.extraProps,
+            dataComponent = this.dataComponent,
+            itemScopedSlots = this.itemScopedSlots;
+        var slotComponent = this.$scopedSlots && this.$scopedSlots.item;
+
+        for (var index = start; index <= end; index++) {
+          var dataSource = dataSources[index];
+
+          if (dataSource) {
+            var uniqueKey = typeof dataKey === 'function' ? dataKey(dataSource) : dataSource[dataKey];
+
+            if (typeof uniqueKey === 'string' || typeof uniqueKey === 'number') {
+              slots.push(h(Item, {
+                props: {
+                  index: index,
+                  tag: itemTag,
+                  event: EVENT_TYPE.ITEM,
+                  horizontal: isHorizontal,
+                  uniqueKey: uniqueKey,
+                  source: dataSource,
+                  extraProps: extraProps,
+                  component: dataComponent,
+                  slotComponent: slotComponent,
+                  scopedSlots: itemScopedSlots
+                },
+                style: itemStyle,
+                "class": "".concat(itemClass).concat(this.itemClassAdd ? ' ' + this.itemClassAdd(index) : '')
+              }));
+            } else {
+              console.warn("Cannot get the data-key '".concat(dataKey, "' from data-sources."));
+            }
+          } else {
+            console.warn("Cannot get the index '".concat(index, "' from data-sources."));
+          }
+        }
+
+        return slots;
+      }
+    },
+    // render function, a closer-to-the-compiler alternative to templates
+    // https://vuejs.org/v2/guide/render-function.html#The-Data-Object-In-Depth
+    render: function render(h) {
+      var _this$$slots = this.$slots,
+          header = _this$$slots.header,
+          footer = _this$$slots.footer;
+      var _this$range2 = this.range,
+          padFront = _this$range2.padFront,
+          padBehind = _this$range2.padBehind;
+      var isHorizontal = this.isHorizontal,
+          pageMode = this.pageMode,
+          rootTag = this.rootTag,
+          wrapTag = this.wrapTag,
+          wrapClass = this.wrapClass,
+          wrapStyle = this.wrapStyle,
+          headerTag = this.headerTag,
+          headerClass = this.headerClass,
+          headerStyle = this.headerStyle,
+          footerTag = this.footerTag,
+          footerClass = this.footerClass,
+          footerStyle = this.footerStyle;
+      var paddingStyle = {
+        padding: isHorizontal ? "0px ".concat(padBehind, "px 0px ").concat(padFront, "px") : "".concat(padFront, "px 0px ").concat(padBehind, "px")
+      };
+      var wrapperStyle = wrapStyle ? Object.assign({}, wrapStyle, paddingStyle) : paddingStyle;
+      return h(rootTag, {
+        ref: 'root',
+        on: {
+          '&scroll': !pageMode && this.onScroll
+        }
+      }, [// header slot
+      header ? h(Slot, {
+        "class": headerClass,
+        style: headerStyle,
+        props: {
+          tag: headerTag,
+          event: EVENT_TYPE.SLOT,
+          uniqueKey: SLOT_TYPE.HEADER
+        }
+      }, header) : null, // main list
+      h(wrapTag, {
+        "class": wrapClass,
+        attrs: {
+          role: 'group'
+        },
+        style: wrapperStyle
+      }, this.getRenderSlots(h)), // footer slot
+      footer ? h(Slot, {
+        "class": footerClass,
+        style: footerStyle,
+        props: {
+          tag: footerTag,
+          event: EVENT_TYPE.SLOT,
+          uniqueKey: SLOT_TYPE.FOOTER
+        }
+      }, footer) : null, // an empty element use to scroll to bottom
+      h('div', {
+        ref: 'shepherd',
+        style: {
+          width: isHorizontal ? '0px' : '100%',
+          height: isHorizontal ? '100%' : '0px'
+        }
+      })]);
+    }
+  });
+
+  return VirtualList;
+
+})));

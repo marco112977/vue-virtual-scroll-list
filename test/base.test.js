@@ -1,76 +1,67 @@
-import VirtualList from '../src/index'
 import { mount } from '@vue/test-utils'
-import { getIndexList } from './util'
+import VirtualList from '../src/index'
+import { VirtualProps } from '../src/props'
+import Item from './item.vue'
+import { getDatas } from './util'
 
-// for testing base build.
-const theme = 'base-test'
+describe('base', () => {
+  const Instance = mount({
+    name: 'test',
+    components: {
+      'virtual-list': VirtualList
+    },
+    template: `
+      <div id="app">
+        <virtual-list class="my-list" style="height: 300px; overflow-y: auto;"
+          :data-key="'id'"
+          :data-sources="items"
+          :data-component="item"
+        />
+      </div>
+    `,
+    data () {
+      return {
+        items: getDatas(1000),
+        item: Item
+      }
+    }
+  })
 
-describe(theme, () => {
-    const listCount = 1000
-    const wrapper = mount({
-        template: `
-            <div id="app" style="width: 300px;">
-                <virtual-list class="list"
-                    :size="40"
-                    :remain="6"
-                >
-                    <div class="for-item"
-                        v-for="(item, index) in items"
-                        :key="index"
-                        style="height: 40px; line-height: 40px;"
-                    >
-                        <span class="for-item-text">{{ item }}</span>
-                    </div>
-                </virtual-list>
-            </div>
-        `,
+  it('check mount', () => {
+    expect(Instance.name()).toBe('test')
+    expect(Instance.is('div')).toBe(true)
+    expect(Instance.isVueInstance()).toBe(true)
+    expect(Instance.find('.my-list').exists()).toBe(true)
+  })
 
-        name: 'test',
+  it('check list build by default', () => {
+    const vmData = Instance.vm.$data
+    const vslVm = Instance.find('.my-list').vm
+    const rootEl = vslVm.$el
+    expect(rootEl.tagName.toLowerCase()).toBe(VirtualProps.rootTag.default)
 
-        components: {
-            'virtual-list': VirtualList
-        },
+    const wrapperEl = rootEl.firstElementChild
 
-        data () {
-            return {
-                items: getIndexList(listCount)
-            }
-        }
-    })
+    // wrapper element and padding style
+    expect(wrapperEl.getAttribute('role')).toBe('group')
+    expect(!!rootEl.style.padding).toBe(false)
+    expect(!!wrapperEl.style.padding).toBe(true)
+    expect(wrapperEl.tagName.toLowerCase()).toBe(VirtualProps.wrapTag.default)
 
-    it(`[${theme}] check mount success.`, () => {
-        expect(wrapper.name()).toBe('test')
-        expect(wrapper.is('div')).toBe(true)
-        expect(wrapper.isEmpty()).toBe(false)
-        expect(wrapper.isVueInstance()).toBe(true)
-    })
+    // render number keeps by default
+    expect(wrapperEl.childNodes.length).toBe(VirtualProps.keeps.default)
 
-    it(`[${theme}] check list build success.`, () => {
-        expect(wrapper.find('.for-item').exists()).toBe(true)
-        expect(wrapper.find('.for-item-text').exists()).toBe(true)
+    // items render content
+    for (let i = 0; i < wrapperEl.childNodes.length; i++) {
+      const itemEl = wrapperEl.childNodes[i]
+      expect(itemEl.className).toBe('')
+      expect(itemEl.tagName.toLowerCase()).toBe(VirtualProps.itemTag.default)
 
-        // list wraper height is remain * size.
-        const expectOutsideHeight = 40 * 6
-        const listEl = wrapper.find('.list').vm.$el
-        expect(listEl.style.height).toBe(`${expectOutsideHeight}px`)
-
-        const listWraperEl = listEl.querySelector('div')
-        const expectPaddingBottom = listCount * 40 - expectOutsideHeight * 2
-        expect(listWraperEl.style['padding-top']).toBe('0px')
-        expect(listWraperEl.style['padding-bottom']).toBe(`${expectPaddingBottom}px`)
-    })
-
-    it(`[${theme}] check build item count correct.`, () => {
-        const itemFrags = wrapper.findAll('.for-item')
-
-        // default real dom count is remain + default bench.
-        expect(itemFrags.length).toBe(6 + 6)
-
-        // check every item render content.
-        for (let i = 0; i < itemFrags.length; i++) {
-            const item = itemFrags.at(i)
-            expect(item.text()).toBe('#' + i)
-            expect(item.classes('for-item')).toBe(true)
-        }
-    })
+      // item inner render (see ./item.vue)
+      const itemInnerEl = itemEl.firstElementChild
+      expect(itemInnerEl.className).toBe('inner')
+      expect(itemInnerEl.querySelector('.index').textContent).toBe(`${i}`)
+      expect(itemInnerEl.querySelector('.source').textContent).toBe(vmData.items[i].text)
+    }
+  })
 })

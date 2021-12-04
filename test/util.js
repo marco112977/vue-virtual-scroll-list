@@ -1,19 +1,10 @@
-export function getIndexList (count) {
-    let list = []
-    for (let i = 0; i < count; i++) {
-        list.push('#' + i)
-    }
-    return list
-}
-
-const vars = [40, 50, 80, 100, 140, 160]
-export function getVariableList (count) {
-    let list = []
-    for (let i = 0; i < count; i++) {
-        list.push({
-            text: '#' + i,
-            height: vars[Math.floor(Math.random() * vars.length)]
-        })
-    }
-    return list
+export function getDatas (counts) {
+  const data = []
+  for (let index = 0; index < counts; index++) {
+    data.push({
+      id: String(index),
+      text: Math.random().toString(16).substr(8)
+    })
+  }
+  return data
 }

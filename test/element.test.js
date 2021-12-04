@@ -1,66 +1,79 @@
-import VirtualList from '../src/index'
 import { mount } from '@vue/test-utils'
-import { getIndexList } from './util'
+import VirtualList from '../src/index'
+import { VirtualProps } from '../src/props'
+import Item from './item.vue'
+import { getDatas } from './util'
 
-// for testing props: rtag, wtag wclass.
-const theme = 'element-test'
+describe('element', () => {
+  const Instance = mount({
+    name: 'test',
+    components: {
+      'virtual-list': VirtualList
+    },
+    template: `
+      <div id="app">
+        <virtual-list class="my-list" style="height: 300px; overflow-y: auto;"
+          :data-key="'id'"
+          :data-sources="items"
+          :data-component="item"
+          :root-tag="'article'"
+          :wrap-tag="'section'"
+          :wrap-class="'wrap-class-aaa'"
+          :item-tag="'p'"
+          :item-class="'item-class-bbb'"
+          :item-class-add="addItemClass"
+        />
+      </div>
+    `,
+    data () {
+      return {
+        items: getDatas(1000),
+        item: Item
+      }
+    },
+    methods: {
+      addItemClass (index) {
+        return 'extra-item-' + index
+      }
+    }
+  })
 
-describe(theme, () => {
-    const initSize = 40
-    const initRemian = 6
-    const listCount = 1000
+  it('check mount', () => {
+    expect(Instance.name()).toBe('test')
+    expect(Instance.is('div')).toBe(true)
+    expect(Instance.isVueInstance()).toBe(true)
+    expect(Instance.find('.my-list').exists()).toBe(true)
+  })
 
-    const wrapper = mount({
-        template: `
-            <div id="app" style="width: 300px;">
-                <virtual-list class="list"
-                    :size="size"
-                    :remain="remian"
-                    rtag="div"
-                    wtag="ul"
-                    wclass="conetnt-box"
-                >
-                    <li class="for-item"
-                        v-for="(item, index) in items"
-                        :key="index"
-                        :style="itemStyle"
-                    >
-                        <span class="for-item-text">{{ item }}</span>
-                    </li>
-                </virtual-list>
-            </div>
-        `,
+  it('check element tag and class', () => {
+    const vmData = Instance.vm.$data
+    const vslVm = Instance.find('.my-list').vm
+    const rootEl = vslVm.$el
+    expect(rootEl.tagName.toLowerCase()).toBe('article')
 
-        name: 'test',
+    const wrapperEl = rootEl.firstElementChild
 
-        components: {
-            'virtual-list': VirtualList
-        },
+    // wrapper element and padding style
+    expect(wrapperEl.getAttribute('role')).toBe('group')
+    expect(!!rootEl.style.padding).toBe(false)
+    expect(!!wrapperEl.style.padding).toBe(true)
+    expect(wrapperEl.className).toBe('wrap-class-aaa')
+    expect(wrapperEl.tagName.toLowerCase()).toBe('section')
 
-        data () {
-            return {
-                size: initSize,
-                remian: initRemian,
-                items: getIndexList(listCount)
-            }
-        },
+    // render number keeps by default
+    expect(wrapperEl.childNodes.length).toBe(VirtualProps.keeps.default)
 
-        computed: {
-            itemStyle () {
-                return {
-                    'height': this.size + 'px',
-                    'line-height': this.size + 'px'
-                }
-            }
-        }
-    })
+    // items render content
+    for (let i = 0; i < wrapperEl.childNodes.length; i++) {
+      const itemEl = wrapperEl.childNodes[i]
+      expect(itemEl.className).toBe(`item-class-bbb extra-item-${i}`)
+      expect(itemEl.tagName.toLowerCase()).toBe('p')
 
-    it(`[${theme}] check element tag and classname.`, () => {
-        const listEl = wrapper.find('.list').vm.$el
-        const listWraperEl = listEl.firstElementChild
-
-        expect(listEl.tagName).toBe('DIV')
-        expect(listWraperEl.tagName).toBe('UL')
-        expect(listWraperEl.className).toBe('conetnt-box')
-    })
+      // item inner render (see ./item.vue)
+      const itemInnerEl = itemEl.firstElementChild
+      expect(itemInnerEl.className).toBe('inner')
+      expect(itemInnerEl.querySelector('.index').textContent).toBe(`${i}`)
+      expect(itemInnerEl.querySelector('.source').textContent).toBe(vmData.items[i].text)
+    }
+  })
 })
